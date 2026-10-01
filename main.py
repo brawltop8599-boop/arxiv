@@ -64,8 +64,7 @@ status_data = {
 global_session = None
 session_created_time = 0
 def get_session(force_new=False):
-    global global_session, session_created_time
-    
+    global global_session, session_created_time    
     if not force_new and global_session and (time.time() - session_created_time) < 300:
         return global_session
     session = requests.Session()
