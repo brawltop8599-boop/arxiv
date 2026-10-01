@@ -23,7 +23,7 @@ BANNED_IPS = {
     "91.194.168.40", "159.194.214.13", "217.107.106.106", "91.195.172.250", "78.111.155.199", "95.83.134.76", "178.120.4.234", "46.53.134.27", "178.150.186.100", 
     "46.150.94.187", "45.12.26.251", "80.91.179.217", "85.198.107.131", "176.119.83.194", "46.150.90.146", "85.249.245.196", "176.105.213.137", "77.120.163.216",  
     "109.172.30.88", "178.137.26.58", "143.244.45.242", "194.44.57.68", "143.244.46.242", "188.239.94.135", "82.208.115.42", "88.65.191.89", "212.66.41.73",
-    "178.207.19.26", "158.173.154.155", "89.125.113.17", "46.150.71.243", "94.231.176.6", "176.210.26.190", "178.91.18.50", "46.150.81.117",
+    "178.207.19.26", "158.173.154.155", "89.125.113.17", "46.150.71.243", "94.231.176.6", "176.210.26.190", "178.91.18.50",
     "2001:678:6d4:5060::3ead:110", "2003:cc:bf4d:1c1a:77e0:492e:451d:a4", "2003:cc:bf48:c26d:143:5df7:12bc:7686", "2a00:1e98:f2d5:e661:455c:a694:bcaf:17ad",
     "2a0a:4cc0:c1:ea4e:784f:20ff:fe46:d1b1", "2a00:1fa0:c604:e33a:5b7e:e2c6:b58b:5360", "2a00:20:8008:8766:78e8:c27a:537:9d47", "2a00:1fa0:82a8:5b8d:cc51:cf16:701b:71e",
     "2a00:1e98:f022:9877:c1ba:4b65:5e85:1c4f", "2a0d:6fc2:5db2:6600:b0b1:70c1:6721:ca58", "2a00:1e98:f2d5:e661:5a0f:182a:60ea:e4cd", 
@@ -46,38 +46,28 @@ BANNED_PREFIXES = (
 def is_ip_banned(request: Request) -> bool:
     client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for")
     if not client_ip and request.client:
-        client_ip = request.client.host
-    
+        client_ip = request.client.host    
     if not client_ip:
-        return False
-        
+        return False       
     client_ip = client_ip.split(",")[0].strip()
-
     if client_ip in BANNED_IPS:
-        return True
-        
+        return True        
     if client_ip.startswith(BANNED_PREFIXES):
-        return True
-        
+        return True        
     return False
-
 app = FastAPI()
-
 status_data = {
     "last_update": "Hali yangilanmagan",
     "total_channels": 0,
     "status": "Ishga tushmoqda...",
 }
-
 global_session = None
 session_created_time = 0
-
 def get_session(force_new=False):
     global global_session, session_created_time
     
     if not force_new and global_session and (time.time() - session_created_time) < 300:
         return global_session
-
     session = requests.Session()
     headers = {
         "User-Agent": (
@@ -95,12 +85,10 @@ def get_session(force_new=False):
     session.cookies.set("mac", MAC_BASE, domain="app.ttt5.me")
     session.cookies.set("stb_lang", "en", domain="app.ttt5.me")
     session.cookies.set("timezone", "Europe/London", domain="app.ttt5.me")
-
     try:
         session.get("http://app.ttt5.me/stalker_portal/c/", timeout=5)
     except Exception:
         pass
-
     token = ""
     random_val = "4bad200fb83418a95c33ea688d5b3f6e66a8428b"
     try:
@@ -110,14 +98,12 @@ def get_session(force_new=False):
         r = session.get(hs_url, timeout=10).json()
         js_data = r.get("js", {})
         token = js_data.get("token", "")
-        random_val = js_data.get("random", random_val)
-        
+        random_val = js_data.get("random", random_val)        
         if token:
             session.cookies.set("token", token, domain="app.ttt5.me")
             session.headers.update({"Authorization": f"Bearer {token}"})
     except Exception:
         pass
-
     metrics_data = json.dumps({
         "type": "stb",
         "model": "MAG254",
@@ -126,7 +112,6 @@ def get_session(force_new=False):
         "uid": UID_BASE,
         "random": random_val,
     })
-
     token_param = f"&token={token}" if token else ""
     prof_url = (
         f"{PORTAL_URL}?type=stb&action=get_profile&JsHttpRequest=1-xml&hd=1"
@@ -144,17 +129,14 @@ def get_session(force_new=False):
         session.get(prof_url, timeout=10)
     except Exception:
         pass
-
     try:
         acc_url = f"{PORTAL_URL}?type=account_info&action=get_main_info&JsHttpRequest=1-xml"
         session.get(acc_url, timeout=10)
     except Exception:
         pass
-
     global_session = session
     session_created_time = time.time()
     return session
-
 def fetch_channels_data(session):
     genres_map = {}
     try:
@@ -169,10 +151,8 @@ def fetch_channels_data(session):
                     genres_map[str(gid)] = gtitle
     except Exception:
         pass
-
     channels = []
     seen_cmds = set()
-
     try:
         channels_url = f"{PORTAL_URL}?type=itv&action=get_all_channels&JsHttpRequest=1-xml"
         channels_res = session.get(channels_url, timeout=10).json()
@@ -181,7 +161,6 @@ def fetch_channels_data(session):
             channels = data
     except Exception:
         pass
-
     if not channels:
         try:
             list_url = f"{PORTAL_URL}?type=itv&action=get_ordered_list&genre=*&sortby=number&order=asc&hd=0&fav=0&not_my_genres=0&JsHttpRequest=1-xml"
@@ -193,7 +172,6 @@ def fetch_channels_data(session):
                 channels = data
         except Exception:
             pass
-
     try:
         if genres_map:
             for gid in genres_map.keys():
@@ -208,32 +186,24 @@ def fetch_channels_data(session):
                             channels.append(ch)
     except Exception:
         pass
-
     return channels, genres_map
-
 def update_playlist():
     global status_data
     status_data["status"] = "Yangilanmoqda..."
-
     session = get_session(force_new=False)
     channels, genres_map = fetch_channels_data(session)
-
     if not channels:
         session = get_session(force_new=True)
         channels, genres_map = fetch_channels_data(session)
-
     channels_list = []
     for ch in channels:
         ch_name = ch.get("name", "Kanal")
-        cmd = ch.get("cmd", "")
-        
+        cmd = ch.get("cmd", "")        
         logo = ch.get("logo", "")
         if logo and not logo.startswith("http"):
             logo = f"http://app.ttt5.me/stalker_portal/misc/logos/{logo}"
-
         genre_id = str(ch.get("tv_genre_id", ch.get("genre_id", "")))
         group_title = genres_map.get(genre_id, "Umumiy")
-
         if cmd:
             channels_list.append({
                 "name": ch_name,
@@ -241,13 +211,10 @@ def update_playlist():
                 "group": group_title,
                 "logo": logo
             })
-
     temp_file = "playlist.tmp"
     final_file = "playlist.json"
-
     with open(temp_file, "w", encoding="utf-8") as f:
         json.dump(channels_list, f, ensure_ascii=False, indent=4)
-
     if os.path.exists(final_file):
         os.remove(final_file)
     os.rename(temp_file, final_file)
@@ -256,8 +223,7 @@ def update_playlist():
         "%Y-%m-%d %H:%M:%S", time.localtime()
     )
     status_data["total_channels"] = len(channels_list)
-    status_data["status"] = "Muvaffaqiyatli ishlayapti ✅" if len(channels_list) > 0 else "Kanal topilmadi ⚠️"
-
+    status_data["status"] = "Muvaffaqiyatli" if len(channels_list) > 0 else "Ktopilmadi"
 def background_worker():
     while True:
         try:
@@ -265,24 +231,20 @@ def background_worker():
         except Exception as e:
             print(f"Xatolik: {e}")
         time.sleep(300)
-
 @app.on_event("startup")
 def startup_event():
     t = threading.Thread(target=background_worker, daemon=True)
     t.start()
-
 @app.get("/", response_class=RedirectResponse)
 def root_redirect(request: Request):
     if is_ip_banned(request):
         return RedirectResponse(url=STUB_VIDEO_URL, status_code=302)
     return RedirectResponse(url=TELEGRAM_GROUP_URL, status_code=302)
-
 @app.get("/health")
 def health_check(request: Request):
     if is_ip_banned(request):
         return RedirectResponse(url=STUB_VIDEO_URL, status_code=302)
     return {"status": "ok"}
-
 @app.get("/playlist.json")
 def download_json(request: Request, key: str = ""):
     if is_ip_banned(request):
@@ -290,9 +252,7 @@ def download_json(request: Request, key: str = ""):
 
     if key != SECRET_KEY:
         return [{"name": "Reklama / Xatolik", "group": "Stub", "logo": "", "url": STUB_VIDEO_URL}]
-
     base_url = str(request.base_url).rstrip('/')
-
     if os.path.exists("playlist.json"):
         with open("playlist.json", "r", encoding="utf-8") as f:
             channels = json.load(f)
@@ -306,12 +266,10 @@ def download_json(request: Request, key: str = ""):
             })
         return result
     return JSONResponse(content={"error": "Hali playlist tayyor emas!"}, status_code=404)
-
 @app.get("/pl.m3u8", response_class=PlainTextResponse)
 @app.get("/playlist.m3u8", response_class=PlainTextResponse)
 def download_m3u8(request: Request, key: str = ""):
-    headers = {"Content-Disposition": "attachment; filename=playlist.m3u8"}
-    
+    headers = {"Content-Disposition": "attachment; filename=playlist.m3u8"}    
     if is_ip_banned(request):
         content = (
             "#EXTM3U\n"
@@ -319,9 +277,7 @@ def download_m3u8(request: Request, key: str = ""):
             f"{STUB_VIDEO_URL}"
         )
         return PlainTextResponse(content, headers=headers)
-
     base_url = str(request.base_url).rstrip('/')
-
     if key != SECRET_KEY:
         content = (
             "#EXTM3U\n"
@@ -329,29 +285,23 @@ def download_m3u8(request: Request, key: str = ""):
             f"{STUB_VIDEO_URL}"
         )
         return PlainTextResponse(content, headers=headers)
-
     if not os.path.exists("playlist.json"):
         return PlainTextResponse("#EXTM3U\n# Xatolik: Playlist hali tayyorlanmadi", headers=headers)
-
     try:
         with open("playlist.json", "r", encoding="utf-8") as f:
             channels = json.load(f)
     except Exception:
         return PlainTextResponse("#EXTM3U\n# Xatolik: Playlistni o'qib bo'lmadi", headers=headers)
-
     m3u_lines = ["#EXTM3U"]
     for index, ch in enumerate(channels):
         name = ch.get("name", "Kanal")
         group = ch.get("group", "Umumiy")
-        stream_link = f"{base_url}/ch/{index}?key={SECRET_KEY}"
-        
+        stream_link = f"{base_url}/ch/{index}?key={SECRET_KEY}"        
         m3u_line = f"#EXTINF:-1 tvg-name=\"{name}\" group-title=\"{group}\",{name}"
         m3u_lines.append(m3u_line)
         m3u_lines.append(stream_link)
-
     playlist_content = "\n".join(m3u_lines)
     return PlainTextResponse(playlist_content, headers=headers)
-
 @app.get("/ch/{index}")
 def proxy_stream(index: int, request: Request, key: str = ""):
     if is_ip_banned(request):
@@ -359,10 +309,8 @@ def proxy_stream(index: int, request: Request, key: str = ""):
 
     if key != SECRET_KEY:
         return RedirectResponse(url=STUB_VIDEO_URL, status_code=302)
-
     if not os.path.exists("playlist.json"):
-        return Response("Playlist topilmadi", status_code=404)
-    
+        return Response("Playlist topilmadi", status_code=404)    
     try:
         with open("playlist.json", "r", encoding="utf-8") as f:
             channels = json.load(f)
@@ -370,10 +318,8 @@ def proxy_stream(index: int, request: Request, key: str = ""):
         cmd = target.get("cmd", "")
     except Exception as e:
         return Response(f"Kanal topilmadi: {e}", status_code=404)
-
     session = get_session()
-    stream_url = ""
-    
+    stream_url = ""    
     for attempt in range(2):
         try:
             clean_cmd = cmd
@@ -385,8 +331,7 @@ def proxy_stream(index: int, request: Request, key: str = ""):
             resp = session.get(link_url, timeout=10)
             
             if not resp.text.strip():
-                raise ValueError("Bo'sh javob keldi")
-                
+                raise ValueError("Bo'sh javob keldi")            
             link_res = resp.json()
             stream_cmd = link_res.get("js", {}).get("cmd")
             if stream_cmd:
@@ -400,31 +345,24 @@ def proxy_stream(index: int, request: Request, key: str = ""):
             if attempt == 0:
                 session = get_session(force_new=True)
                 time.sleep(0.5)
-
     if not stream_url or stream_url.startswith("/ch/") or ("://" not in stream_url and not stream_url.startswith("/")):
         fallback_url = cmd
         for prefix in ["ffmpeg ", "ch:ffrt ", "ffrt ", "ch:"]:
             if fallback_url.startswith(prefix):
-                fallback_url = fallback_url[len(prefix):].strip()
-        
+                fallback_url = fallback_url[len(prefix):].strip()       
         if "://" in fallback_url:
             stream_url = fallback_url
-
     if stream_url.startswith("/") and not stream_url.startswith("/ch/"):
         stream_url = f"{PORTAL_BASE}{stream_url}"
     elif not stream_url.startswith("http") and stream_url and not stream_url.startswith("/ch/"):
         stream_url = f"{PORTAL_BASE}/{stream_url}"
-
     if stream_url.startswith("/ch/"):
         stream_url = ""
-
     if stream_url and "token=" not in stream_url:
         session_token = session.cookies.get("token")
         if session_token:
             separator = "&" if "?" in stream_url else "?"
             stream_url = f"{stream_url}{separator}token={session_token}"
-
     if not stream_url:
         return Response("Stream URL yaratib bo'lmadi", status_code=500)
-
     return RedirectResponse(url=stream_url, status_code=302)
