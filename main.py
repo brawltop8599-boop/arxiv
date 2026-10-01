@@ -6,17 +6,60 @@ import time
 from fastapi import FastAPI, Response, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 import requests
-
 PORTAL_URL = "http://app.ttt5.me/stalker_portal/server/load.php"
 PORTAL_BASE = "http://app.ttt5.me"
-
 MAC_BASE = "00:1A:79:67:D2:D4"
 SN_BASE = "E64E3F8B8C092"
 UID_BASE = "D19D40486081779F90A66F60EB9836A1D2A63ED493961445338D76A01F31F6D4"
 DEVICE_ID = "20FB21AA77D58B6DC9200101EED68B82C4350765274BC3373EA9758DC8F3EA9E"
-
 SECRET_KEY = "000"
 TELEGRAM_GROUP_URL = "https://t.me/+2lWVU6CKQsVkMWRi"  
+STUB_VIDEO_URL = "https://raw.githubusercontent.com/Waswas777/video2/refs/heads/main/playlist.m3u8"
+BANNED_IPS = {        
+    "5.253.66.62", "23.106.253.18", "23.106.249.56", "31.3.156.64", "38.180.180.126", "46.150.71.146", "91.214.82.125", "109.86.19.135", "217.12.223.190", "188.233.60.20",
+    "91.195.172.249", "149.102.240.138", "91.194.168.20", "91.195.172.241", "91.195.172.240", "88.218.92.126", "46.150.71.235", "194.44.26.199", "130.0.235.254",
+    "46.96.27.147", "194.44.46.82", "213.109.230.149", "77.239.161.129", "192.162.33.80", "192.162.33.73", "46.150.74.185", "195.64.183.231", "62.233.43.122",
+    "176.108.27.175", "91.123.158.251", "46.172.86.196", "213.5.196.234", "217.196.164.251", "195.64.183.237", "37.214.2.184", "176.105.213.173", "176.105.213.129",    
+    "91.194.168.40", "159.194.214.13", "217.107.106.106", "91.195.172.250", "78.111.155.199", "95.83.134.76", "178.120.4.234", "46.53.134.27", "178.150.186.100", 
+    "46.150.94.187", "45.12.26.251", "80.91.179.217", "85.198.107.131", "176.119.83.194", "46.150.90.146", "85.249.245.196", "176.105.213.137", "77.120.163.216",  
+    "109.172.30.88", "178.137.26.58", "143.244.45.242", "194.44.57.68", "143.244.46.242", "188.239.94.135", "82.208.115.42", "88.65.191.89", "212.66.41.73",
+    "178.207.19.26", "158.173.154.155", "89.125.113.17", "46.150.71.243", "94.231.176.6", "176.210.26.190", "178.91.18.50", "46.150.81.117",
+    "2001:678:6d4:5060::3ead:110", "2003:cc:bf4d:1c1a:77e0:492e:451d:a4", "2003:cc:bf48:c26d:143:5df7:12bc:7686", "2a00:1e98:f2d5:e661:455c:a694:bcaf:17ad",
+    "2a0a:4cc0:c1:ea4e:784f:20ff:fe46:d1b1", "2a00:1fa0:c604:e33a:5b7e:e2c6:b58b:5360", "2a00:20:8008:8766:78e8:c27a:537:9d47", "2a00:1fa0:82a8:5b8d:cc51:cf16:701b:71e",
+    "2a00:1e98:f022:9877:c1ba:4b65:5e85:1c4f", "2a0d:6fc2:5db2:6600:b0b1:70c1:6721:ca58", "2a00:1e98:f2d5:e661:5a0f:182a:60ea:e4cd", 
+    "2a02:6ea0:3100:2000:490a:2928:d5eb:e685"    
+}
+BANNED_PREFIXES = (
+    "2a09:bac5:", "2a02:3032:", "2a09:bac1:", "2a12:bec4:", "2a01:e5c0:", "2a02:2378:",
+    "2a02:4780:", "2001:49f0:", "2a14:a087:", "2a01:4f8:", "2001:ac8:", "2a03:d000:",
+    "2001:16b8:", "2a0e:d604:", "2a06:98c0:", "2a01:4f9:", "51.158.201.", "149.154.161.",
+    "94.158.58.", "81.19.141.", "93.152.224.", "80.66.72.", "91.92.33.", "5.255.",
+    "2a12:5940:", "45.45.", "104.204.", "161.129.", "174.136.203.", "104.28.",
+    "87.250.", "38.54.", "82.23.", "2a10:1fc0:", "2607:5300:", "141.11.",
+    "154.223.", "45.129.", "130.94.", "212.237.", "2001:41d0:", "82.25.",
+    "95.24.", "155.212.", "2a05:45c2:", "2a00:f502:", "2a01:73c0:", "2a0d:3341:",
+    "2001:1e98:", "2001:9e8:", "2a0d:6fc0:", "2409:40d1:", "144.31.141.", "213.180.",
+    "65.49.", "34.212.", "110.172.", "217.194.", "193.169.", "35.87.",
+    "176.3.", "176.123.", "78.56.", "185.146.", "95.85.", "212.57.",
+    "78.54.", "178.254.", "188.163.", "205.210.31."
+)
+def is_ip_banned(request: Request) -> bool:
+    client_ip = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for")
+    if not client_ip and request.client:
+        client_ip = request.client.host
+    
+    if not client_ip:
+        return False
+        
+    client_ip = client_ip.split(",")[0].strip()
+
+    if client_ip in BANNED_IPS:
+        return True
+        
+    if client_ip.startswith(BANNED_PREFIXES):
+        return True
+        
+    return False
 
 app = FastAPI()
 
@@ -229,17 +272,24 @@ def startup_event():
     t.start()
 
 @app.get("/", response_class=RedirectResponse)
-def root_redirect():
+def root_redirect(request: Request):
+    if is_ip_banned(request):
+        return RedirectResponse(url=STUB_VIDEO_URL, status_code=302)
     return RedirectResponse(url=TELEGRAM_GROUP_URL, status_code=302)
 
 @app.get("/health")
-def health_check():
+def health_check(request: Request):
+    if is_ip_banned(request):
+        return RedirectResponse(url=STUB_VIDEO_URL, status_code=302)
     return {"status": "ok"}
 
 @app.get("/playlist.json")
 def download_json(request: Request, key: str = ""):
+    if is_ip_banned(request):
+        return [{"name": "Reklama / Xatolik", "group": "Stub", "logo": "", "url": STUB_VIDEO_URL}]
+
     if key != SECRET_KEY:
-        return [{"name": "Reklama / Xatolik", "group": "Stub", "logo": "", "url": "https://github.com/brawltop8599-boop/ads-stub/raw/refs/heads/main/v.mp4"}]
+        return [{"name": "Reklama / Xatolik", "group": "Stub", "logo": "", "url": STUB_VIDEO_URL}]
 
     base_url = str(request.base_url).rstrip('/')
 
@@ -261,13 +311,22 @@ def download_json(request: Request, key: str = ""):
 @app.get("/playlist.m3u8", response_class=PlainTextResponse)
 def download_m3u8(request: Request, key: str = ""):
     headers = {"Content-Disposition": "attachment; filename=playlist.m3u8"}
+    
+    if is_ip_banned(request):
+        content = (
+            "#EXTM3U\n"
+            f"#EXTINF:-1 tvg-name=\"Reklama\" group-title=\"Stub\",Reklama\n"
+            f"{STUB_VIDEO_URL}"
+        )
+        return PlainTextResponse(content, headers=headers)
+
     base_url = str(request.base_url).rstrip('/')
 
     if key != SECRET_KEY:
         content = (
             "#EXTM3U\n"
-            "#EXTINF:-1 tvg-name=\"Xato kalit / Reklama\" group-title=\"Stub\",Xato kalit / Reklama\n"
-            "https://github.com/brawltop8599-boop/ads-stub/raw/refs/heads/main/v.mp4"
+            f"#EXTINF:-1 tvg-name=\"Xato kalit / Reklama\" group-title=\"Stub\",Xato kalit / Reklama\n"
+            f"{STUB_VIDEO_URL}"
         )
         return PlainTextResponse(content, headers=headers)
 
@@ -294,9 +353,12 @@ def download_m3u8(request: Request, key: str = ""):
     return PlainTextResponse(playlist_content, headers=headers)
 
 @app.get("/ch/{index}")
-def proxy_stream(index: int, key: str = ""):
+def proxy_stream(index: int, request: Request, key: str = ""):
+    if is_ip_banned(request):
+        return RedirectResponse(url=STUB_VIDEO_URL, status_code=302)
+
     if key != SECRET_KEY:
-        return RedirectResponse(url="https://github.com/brawltop8599-boop/ads-stub/raw/refs/heads/main/v.mp4", status_code=302)
+        return RedirectResponse(url=STUB_VIDEO_URL, status_code=302)
 
     if not os.path.exists("playlist.json"):
         return Response("Playlist topilmadi", status_code=404)
@@ -309,7 +371,6 @@ def proxy_stream(index: int, key: str = ""):
     except Exception as e:
         return Response(f"Kanal topilmadi: {e}", status_code=404)
 
-    # Пробуем получить ссылку, если сессия упала — пересоздаем её принудительно
     session = get_session()
     stream_url = ""
     
@@ -323,7 +384,6 @@ def proxy_stream(index: int, key: str = ""):
             link_url = f"{PORTAL_URL}?type=itv&action=create_link&cmd={requests.utils.quote(clean_cmd)}&JsHttpRequest=1-xml"
             resp = session.get(link_url, timeout=10)
             
-            # Проверяем, что ответ не пустой и содержит JSON
             if not resp.text.strip():
                 raise ValueError("Bo'sh javob keldi")
                 
@@ -338,11 +398,9 @@ def proxy_stream(index: int, key: str = ""):
         except Exception as e:
             print(f"Create link xatolik (urinish {attempt+1}): {e}")
             if attempt == 0:
-                # Если первая попытка провалилась, принудительно обновляем сессию (токен)
                 session = get_session(force_new=True)
                 time.sleep(0.5)
 
-    # Фолбэк, если через create_link получить не удалось
     if not stream_url or stream_url.startswith("/ch/") or ("://" not in stream_url and not stream_url.startswith("/")):
         fallback_url = cmd
         for prefix in ["ffmpeg ", "ch:ffrt ", "ffrt ", "ch:"]:
